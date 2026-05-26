@@ -196,6 +196,16 @@
     ctx.clearRect(0, 0, width, height);
   }
 
+  function pathPointToCanvas(point, cx, cy, pxPerMeter) {
+    const headingRad = (interp.display.heading || state.heading || 0) * Math.PI / 180;
+    const sin = Math.sin(headingRad);
+    const cos = Math.cos(headingRad);
+    return {
+      x: cx + (point.lateral * cos + point.forward * sin) * pxPerMeter,
+      y: cy + (point.lateral * sin - point.forward * cos) * pxPerMeter,
+    };
+  }
+
   function renderOverlay() {
     if (!overlayCanvas) return;
     const resized = resizeOverlayCanvas();
@@ -238,10 +248,9 @@
     ctx.lineJoin = "round";
     ctx.beginPath();
     visible.forEach((point, index) => {
-      const x = cx + point.lateral * pxPerMeter;
-      const y = cy - point.forward * pxPerMeter;
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
+      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
+      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
     ctx.strokeStyle = "rgba(0, 0, 0, .55)";
     ctx.lineWidth = Math.max(7, Math.min(13, width * 0.026));
@@ -249,10 +258,9 @@
 
     ctx.beginPath();
     visible.forEach((point, index) => {
-      const x = cx + point.lateral * pxPerMeter;
-      const y = cy - point.forward * pxPerMeter;
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
+      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
+      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
     const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
     gradient.addColorStop(0, "rgba(255, 184, 68, .98)");
