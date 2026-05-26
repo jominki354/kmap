@@ -9,7 +9,6 @@
   const INTERP_MAX_MS = 1800;
   const INTERP_MIN_MS = 350;
   const NAV_STALE_MS = 5000;
-  const KMAP_MODES = new Set(["box", "mini", "schematic"]);
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -679,12 +678,12 @@
   }
 
   function setMode(mode) {
-    state.mode = KMAP_MODES.has(mode) ? mode : "box";
+    state.mode = "box";
     root.dataset.mode = state.mode;
   }
 
   function setProvider(provider) {
-    state.provider = provider === "kakao" || provider === "schematic" ? provider : "mock";
+    state.provider = provider === "kakao" ? "kakao" : "mock";
     root.dataset.provider = state.provider;
   }
 
@@ -884,12 +883,6 @@
 
   async function initProvider() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("provider") === "schematic" || params.get("mode") === "schematic") {
-      setMode("schematic");
-      setProvider("schematic");
-      return;
-    }
-
     if (params.get("mock") === "1") {
       setProvider("mock");
       return;
