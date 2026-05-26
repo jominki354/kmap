@@ -17,6 +17,7 @@
   const surface = document.getElementById("mapSurface");
   const marker = document.getElementById("vehicleMarker");
   const statusText = document.getElementById("statusText");
+  const compass = document.getElementById("compass");
   const navInfo = document.getElementById("navInfo");
   const navRoad = document.getElementById("navRoad");
   const navMeta = document.getElementById("navMeta");
@@ -33,6 +34,10 @@
     lastTs: 0,
     provider: "mock",
     mode: "box",
+    overlayHeadingUp: true,
+    showGrid: false,
+    showCompass: true,
+    curvatureColor: false,
     kakaoReady: false,
     map: null,
     markerOverlay: null,
@@ -96,6 +101,12 @@
     const heading = finiteNumber(value);
     if (heading === null) return state.heading;
     return ((heading % 360) + 360) % 360;
+  }
+
+  function boolParam(params, key, fallback) {
+    const value = params.get(key);
+    if (value === null) return fallback;
+    return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
   }
 
   function levelForSpeed(speed) {
@@ -324,7 +335,7 @@
   }
 
   function pathPointToCanvas(point, cx, cy, pxPerMeter) {
-    const headingRad = (interp.display.heading || state.heading || 0) * Math.PI / 180;
+    const headingRad = state.overlayHeadingUp ? 0 : (interp.display.heading || state.heading || 0) * Math.PI / 180;
     const sin = Math.sin(headingRad);
     const cos = Math.cos(headingRad);
     return {
@@ -448,6 +459,46 @@
     ctx.restore();
   }
 
+  function segmentCurvature(points, index, cx, cy, pxPerMeter) {
+    if (index <= 0 || index >= points.length - 1) return 0;
+    const previous = pathPointToCanvas(points[index - 1], cx, cy, pxPerMeter);
+    const current = pathPointToCanvas(points[index], cx, cy, pxPerMeter);
+    const next = pathPointToCanvas(points[index + 1], cx, cy, pxPerMeter);
+    const a = Math.atan2(current.y - previous.y, current.x - previous.x);
+    const b = Math.atan2(next.y - current.y, next.x - current.x);
+    return Math.abs((((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  }
+
+  function drawPathColorStroke(ctx, points, cx, cy, pxPerMeter, width, maxY) {
+    if (!state.curvatureColor) {
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
+        if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
+        else ctx.lineTo(canvasPoint.x, canvasPoint.y);
+      });
+      const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
+      gradient.addColorStop(0, "rgba(255, 184, 68, .98)");
+      gradient.addColorStop(1, "rgba(255, 92, 48, .90)");
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = Math.max(4, Math.min(8, width * 0.016));
+      ctx.stroke();
+      return;
+    }
+
+    ctx.lineWidth = Math.max(4, Math.min(8, width * 0.016));
+    for (let index = 1; index < points.length; index += 1) {
+      const from = pathPointToCanvas(points[index - 1], cx, cy, pxPerMeter);
+      const to = pathPointToCanvas(points[index], cx, cy, pxPerMeter);
+      const curve = segmentCurvature(points, index, cx, cy, pxPerMeter);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.strokeStyle = curve > 0.32 ? "rgba(255, 83, 46, .96)" : curve > 0.16 ? "rgba(255, 184, 68, .96)" : "rgba(255, 132, 42, .94)";
+      ctx.stroke();
+    }
+  }
+
   function fitRouteView() {
     if (!routeState.expanded || !routeState.active || !routeState.bounds || !state.map || !window.kakao?.maps) return;
     try {
@@ -568,18 +619,7 @@
     ctx.lineWidth = Math.max(7, Math.min(13, width * 0.026));
     ctx.stroke();
 
-    ctx.beginPath();
-    visible.forEach((point, index) => {
-      const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
-      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
-      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
-    });
-    const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
-    gradient.addColorStop(0, "rgba(255, 184, 68, .98)");
-    gradient.addColorStop(1, "rgba(255, 92, 48, .90)");
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = Math.max(4, Math.min(8, width * 0.016));
-    ctx.stroke();
+    drawPathColorStroke(ctx, visible, cx, cy, pxPerMeter, width, maxY);
 
     drawTurnMarker(ctx, cx, cy, pxPerMeter, minY, maxY, width);
     drawSdiMarker(ctx, cx, cy, pxPerMeter, minY, maxY, width);
@@ -648,6 +688,18 @@
     root.dataset.provider = state.provider;
   }
 
+  function applyOverlayOptions(params) {
+    state.overlayHeadingUp = boolParam(params, "heading_up", true);
+    state.showGrid = boolParam(params, "grid", false);
+    state.showCompass = boolParam(params, "compass", true);
+    state.curvatureColor = boolParam(params, "curvature", false);
+    root.dataset.grid = state.showGrid ? "1" : "0";
+    root.dataset.headingUp = state.overlayHeadingUp ? "1" : "0";
+    root.dataset.curvature = state.curvatureColor ? "1" : "0";
+    navState.dirty = true;
+    routeState.dirty = true;
+  }
+
   function updateStatus() {
     if (!statusText) return;
     const label = state.provider;
@@ -664,8 +716,18 @@
     if (navState.active) parts.push(`P${navState.points.length}`);
     if (routeState.active) parts.push(`R${routeState.coordinates.length}`);
     if (routeState.expanded) parts.push("expanded");
+    if (!state.overlayHeadingUp) parts.push("north-up");
+    if (state.curvatureColor) parts.push("curve");
     if (state.error) parts.push(state.error);
     statusText.textContent = parts.join(" / ");
+  }
+
+  function updateCompass() {
+    if (!compass) return;
+    compass.hidden = !state.showCompass;
+    if (compass.hidden) return;
+    const rotation = state.overlayHeadingUp ? -(interp.display.heading || state.heading || 0) : 0;
+    compass.style.setProperty("--compass-rotation", `${rotation}deg`);
   }
 
   function updateMockPan(lat, lon) {
@@ -701,6 +763,7 @@
 
   function renderDisplay() {
     applyMarkerRotation(interp.display.heading);
+    updateCompass();
     applyMarkerPosition();
     updateMockPan(interp.display.lat, interp.display.lon);
     applyKakaoPosition(interp.display.lat, interp.display.lon);
@@ -964,6 +1027,7 @@
     root.dataset.embedded = embedded ? "1" : "0";
     state.debug = params.get("debug") === "1";
     root.dataset.debug = state.debug ? "1" : "0";
+    applyOverlayOptions(params);
     if (embedded || params.get("demo") === "0") {
       demoPanel.hidden = true;
     } else {
