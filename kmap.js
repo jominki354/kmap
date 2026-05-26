@@ -8,6 +8,7 @@
   const INTERP_BASE_MS = 1100;
   const INTERP_MAX_MS = 1800;
   const INTERP_MIN_MS = 350;
+  const NAV_STALE_MS = 2500;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -47,6 +48,8 @@
     goal: null,
     sdi: null,
     dirty: true,
+    updatedAt: 0,
+    staleTimer: 0,
     lastViewRange: 0,
     lastCanvasWidth: 0,
     lastCanvasHeight: 0,
@@ -133,22 +136,57 @@
       const y = finiteNumber(parts[1]);
       const d = finiteNumber(parts[2]);
       if (x === null || y === null) continue;
-      if (Math.abs(x) > 80 || y < -20 || y > 1200) continue;
-      points.push({ x, y, d: d === null ? y : d });
+      const forward = x;
+      const lateral = y;
+      if (forward < -20 || forward > 1200 || Math.abs(lateral) > 80) continue;
+      points.push({ forward, lateral, d: d === null ? forward : d });
       if (points.length >= 160) break;
     }
     return points;
   }
 
+  function clearNav() {
+    if (!navState.active && navState.points.length === 0 && !navState.path) return;
+    if (navState.staleTimer) {
+      window.clearTimeout(navState.staleTimer);
+      navState.staleTimer = 0;
+    }
+    navState.active = false;
+    navState.path = "";
+    navState.points = [];
+    navState.road = "";
+    navState.turn = null;
+    navState.goal = null;
+    navState.sdi = null;
+    navState.updatedAt = 0;
+    navState.dirty = true;
+    renderOverlay();
+    updateStatus();
+  }
+
+  function expireNavIfStale(now = Date.now()) {
+    if (!navState.active || !navState.updatedAt) return false;
+    if (now - navState.updatedAt <= NAV_STALE_MS) return false;
+    clearNav();
+    return true;
+  }
+
   function setNav(payload) {
     const path = String(payload.path || "").trim();
-    navState.active = Boolean(payload.active) && path.length > 0;
+    if (!payload.active || !path) {
+      clearNav();
+      return;
+    }
+    navState.active = true;
     navState.path = path;
-    navState.points = navState.active ? parsePath(path) : [];
+    navState.points = parsePath(path);
     navState.road = String(payload.road || "");
     navState.turn = payload.turn || null;
     navState.goal = payload.goal || null;
     navState.sdi = payload.sdi || null;
+    navState.updatedAt = Date.now();
+    if (navState.staleTimer) window.clearTimeout(navState.staleTimer);
+    navState.staleTimer = window.setTimeout(clearNav, NAV_STALE_MS + 150);
     navState.dirty = true;
     renderOverlay();
     updateStatus();
@@ -168,6 +206,7 @@
     const width = overlayCanvas.width / dpr;
     const height = overlayCanvas.height / dpr;
     const viewRange = viewRangeMeters(state.speed);
+    expireNavIfStale();
     if (Math.abs(viewRange - navState.lastViewRange) > 1) {
       navState.lastViewRange = viewRange;
       navState.dirty = true;
@@ -188,7 +227,7 @@
     const pxPerMeter = height / viewRange;
     const maxY = viewRange * 0.66;
     const minY = -viewRange * 0.18;
-    const visible = navState.points.filter((point) => point.y >= minY && point.y <= maxY);
+    const visible = navState.points.filter((point) => point.forward >= minY && point.forward <= maxY);
     if (visible.length < 2) {
       ctx.restore();
       navState.dirty = false;
@@ -199,8 +238,8 @@
     ctx.lineJoin = "round";
     ctx.beginPath();
     visible.forEach((point, index) => {
-      const x = cx + point.x * pxPerMeter;
-      const y = cy - point.y * pxPerMeter;
+      const x = cx + point.lateral * pxPerMeter;
+      const y = cy - point.forward * pxPerMeter;
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
@@ -210,8 +249,8 @@
 
     ctx.beginPath();
     visible.forEach((point, index) => {
-      const x = cx + point.x * pxPerMeter;
-      const y = cy - point.y * pxPerMeter;
+      const x = cx + point.lateral * pxPerMeter;
+      const y = cy - point.forward * pxPerMeter;
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
