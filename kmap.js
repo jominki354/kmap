@@ -38,6 +38,8 @@
     showGrid: false,
     showCompass: true,
     curvatureColor: false,
+    themeMode: "auto",
+    displayTheme: "day",
     kakaoReady: false,
     map: null,
     markerOverlay: null,
@@ -112,6 +114,19 @@
     const value = params.get(key);
     if (value === null) return fallback;
     return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+  }
+
+  function autoDisplayTheme(now = new Date()) {
+    const hour = now.getHours() + now.getMinutes() / 60;
+    return hour >= 6.5 && hour < 18.5 ? "day" : "night";
+  }
+
+  function setDisplayTheme(mode = "auto") {
+    const normalized = String(mode || "auto").trim().toLowerCase();
+    state.themeMode = ["day", "night", "auto"].includes(normalized) ? normalized : "auto";
+    state.displayTheme = state.themeMode === "auto" ? autoDisplayTheme() : state.themeMode;
+    root.dataset.themeMode = state.themeMode;
+    root.dataset.theme = state.displayTheme;
   }
 
   function levelForSpeed(speed) {
@@ -471,6 +486,8 @@
         showGrid: state.showGrid,
         showCompass: state.showCompass,
         curvatureColor: state.curvatureColor,
+        themeMode: state.themeMode,
+        displayTheme: state.displayTheme,
       },
     };
   }
@@ -900,6 +917,7 @@
     state.showGrid = boolParam(params, "grid", false);
     state.showCompass = boolParam(params, "compass", true);
     state.curvatureColor = boolParam(params, "curvature", false);
+    setDisplayTheme(params.get("theme") || "auto");
     root.dataset.grid = state.showGrid ? "1" : "0";
     root.dataset.headingUp = state.overlayHeadingUp ? "1" : "0";
     root.dataset.curvature = state.curvatureColor ? "1" : "0";
