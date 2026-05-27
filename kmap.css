@@ -147,7 +147,12 @@ body {
   transform: rotate(var(--compass-rotation, 0deg));
 }
 
+/* Layout A: the in-iframe nav info panel is superseded by the parent-side
+   #carrotNavHud (top-center card on the camera). Keep the DOM/JS in case
+   a future provider wants it back, but hide it for now to avoid showing
+   the same data twice. */
 .kmap-nav-info {
+  display: none !important;
   position: absolute;
   left: clamp(6px, 2.4vw, 10px);
   bottom: clamp(6px, 2.4vw, 10px);
