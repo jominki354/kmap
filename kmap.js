@@ -663,15 +663,15 @@
         else ctx.lineTo(canvasPoint.x, canvasPoint.y);
       });
       const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
-      gradient.addColorStop(0, "rgba(255, 184, 68, .98)");
-      gradient.addColorStop(1, "rgba(255, 92, 48, .90)");
+      gradient.addColorStop(0, "rgba(255, 190, 72, .99)");
+      gradient.addColorStop(1, "rgba(255, 92, 42, .96)");
       ctx.strokeStyle = gradient;
-      ctx.lineWidth = Math.max(4, Math.min(8, width * 0.016));
+      ctx.lineWidth = Math.max(5, Math.min(9, width * 0.018));
       ctx.stroke();
       return;
     }
 
-    ctx.lineWidth = Math.max(4, Math.min(8, width * 0.016));
+    ctx.lineWidth = Math.max(5, Math.min(9, width * 0.018));
     for (let index = 1; index < points.length; index += 1) {
       const from = pathPointToCanvas(points[index - 1], cx, cy, pxPerMeter);
       const to = pathPointToCanvas(points[index], cx, cy, pxPerMeter);
@@ -740,8 +740,8 @@
       if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
       else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
-    ctx.strokeStyle = "rgba(255, 118, 36, .94)";
-    ctx.lineWidth = Math.max(4, Math.min(8, width * 0.010));
+    ctx.strokeStyle = "rgba(255, 128, 38, .97)";
+    ctx.lineWidth = Math.max(5, Math.min(9, width * 0.012));
     ctx.stroke();
     routeState.dirty = false;
     return true;
@@ -818,8 +818,8 @@
       if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
       else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
-    ctx.strokeStyle = "rgba(0, 0, 0, .55)";
-    ctx.lineWidth = Math.max(7, Math.min(13, width * 0.026));
+    ctx.strokeStyle = "rgba(0, 0, 0, .62)";
+    ctx.lineWidth = Math.max(8, Math.min(15, width * 0.029));
     ctx.stroke();
 
     drawPathColorStroke(ctx, visible, cx, cy, pxPerMeter, width, maxY);
