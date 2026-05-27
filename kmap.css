@@ -85,6 +85,10 @@ body {
   filter: var(--kmap-tile-filter);
 }
 
+.kmap-root[data-embedded="1"]:not([data-has-vehicle="1"]) .kmap-kakao-map {
+  opacity: 0;
+}
+
 .kmap-surface {
   position: absolute;
   inset: -16%;

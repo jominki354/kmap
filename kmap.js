@@ -10,9 +10,6 @@
   const INTERP_MIN_MS = 350;
   const NAV_STALE_MS = 5000;
   const EARTH_RADIUS_M = 6378137;
-  const READY_BROADCAST_INTERVAL_MS = 600;
-  const READY_BROADCAST_WINDOW_MS = 7000;
-  const READY_KEEPALIVE_MS = 2000;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -52,8 +49,7 @@
     status: "idle",
     error: "",
     sdkLoadedAt: 0,
-    parentReady: false,
-    lastReadyPostAt: 0,
+    hasVehicle: false,
     lastDebugPostAt: 0,
     overlayRaf: 0,
   };
@@ -85,9 +81,6 @@
     dirty: true,
     fitted: false,
   };
-
-  let readyBroadcastTimer = 0;
-  let readyBroadcastUntil = 0;
 
   // RAF-driven interpolation state. `display` is what's currently on screen.
   // `source` is where the last interp segment started; `target` is the most
@@ -1164,6 +1157,8 @@
     state.heading = normalizeHeading(payload.heading);
     state.speed = speed === null ? state.speed : Math.max(0, speed);
     state.lastTs = finiteNumber(payload.ts) || Date.now();
+    state.hasVehicle = true;
+    root.dataset.hasVehicle = "1";
     setMode(state.mode);
     state.level = levelForSpeed(state.speed);
     applyMotionState();
@@ -1178,9 +1173,6 @@
     state.status = "ready";
     updateStatus();
     root.dataset.status = "ready";
-    if (!state.parentReady && Date.now() - state.lastReadyPostAt >= READY_KEEPALIVE_MS) {
-      postReady("vehicle");
-    }
     return true;
   }
 
@@ -1195,12 +1187,6 @@
       setRoute(data);
     } else if (data.type === "expanded") {
       setExpanded(data.expanded);
-    } else if (data.type === "ready-ack") {
-      state.parentReady = true;
-      if (readyBroadcastTimer) {
-        window.clearInterval(readyBroadcastTimer);
-        readyBroadcastTimer = 0;
-      }
     } else if (data.type === "debug-request") {
       if (state.status === "ready" || state.status === "fallback") {
         postReady("debug-request");
@@ -1211,7 +1197,6 @@
 
   function postReady(reason = "ready", extra = {}) {
     try {
-      state.lastReadyPostAt = Date.now();
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
           source: "carrot-kmap",
@@ -1227,20 +1212,6 @@
     } catch (_) {
       // Standalone file preview can ignore parent messaging failures.
     }
-  }
-
-  function startReadyBroadcast(reason = "ready", extra = {}) {
-    postReady(reason, extra);
-    readyBroadcastUntil = Date.now() + READY_BROADCAST_WINDOW_MS;
-    if (readyBroadcastTimer) window.clearInterval(readyBroadcastTimer);
-    readyBroadcastTimer = window.setInterval(() => {
-      if (state.parentReady || Date.now() > readyBroadcastUntil) {
-        window.clearInterval(readyBroadcastTimer);
-        readyBroadcastTimer = 0;
-        return;
-      }
-      postReady("ready-repeat", extra);
-    }, READY_BROADCAST_INTERVAL_MS);
   }
 
   function postToggleExpanded() {
@@ -1261,7 +1232,7 @@
     state.status = options.soft ? "fallback" : "error";
     updateStatus();
     if (options.soft) {
-      startReadyBroadcast("fallback", { error, fallback: "mock" });
+      postReady("fallback", { error, fallback: "mock" });
       return;
     }
     try {
@@ -1330,7 +1301,7 @@
     });
     await initProvider();
     updateStatus();
-    startReadyBroadcast("ready");
+    postReady();
   }
 
   window.KmapDebug = {
