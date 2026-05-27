@@ -10,6 +10,8 @@
   const INTERP_MIN_MS = 350;
   const NAV_STALE_MS = 5000;
   const EARTH_RADIUS_M = 6378137;
+  const READY_BROADCAST_INTERVAL_MS = 600;
+  const READY_BROADCAST_WINDOW_MS = 7000;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -80,6 +82,9 @@
     dirty: true,
     fitted: false,
   };
+
+  let readyBroadcastTimer = 0;
+  let readyBroadcastUntil = 0;
 
   // RAF-driven interpolation state. `display` is what's currently on screen.
   // `source` is where the last interp segment started; `target` is the most
@@ -1185,11 +1190,14 @@
     } else if (data.type === "expanded") {
       setExpanded(data.expanded);
     } else if (data.type === "debug-request") {
+      if (state.status === "ready" || state.status === "fallback") {
+        postReady("debug-request");
+      }
       postDebugSnapshot("request", true);
     }
   }
 
-  function postReady() {
+  function postReady(reason = "ready", extra = {}) {
     try {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
@@ -1199,12 +1207,27 @@
           // sdkLoadedAt is only non-zero when the Kakao SDK actually executed
           // (= 1 quota count). Parent uses this to track daily SDK load count.
           sdkLoadedAt: state.provider === "kakao" ? state.sdkLoadedAt || Date.now() : 0,
-          snapshot: safeDebugSnapshot("ready"),
+          snapshot: safeDebugSnapshot(reason),
+          ...extra,
         }, "*");
       }
     } catch (_) {
       // Standalone file preview can ignore parent messaging failures.
     }
+  }
+
+  function startReadyBroadcast(reason = "ready", extra = {}) {
+    postReady(reason, extra);
+    readyBroadcastUntil = Date.now() + READY_BROADCAST_WINDOW_MS;
+    if (readyBroadcastTimer) window.clearInterval(readyBroadcastTimer);
+    readyBroadcastTimer = window.setInterval(() => {
+      if (Date.now() > readyBroadcastUntil) {
+        window.clearInterval(readyBroadcastTimer);
+        readyBroadcastTimer = 0;
+        return;
+      }
+      postReady("ready-repeat", extra);
+    }, READY_BROADCAST_INTERVAL_MS);
   }
 
   function postToggleExpanded() {
@@ -1224,14 +1247,18 @@
     state.error = error || "";
     state.status = options.soft ? "fallback" : "error";
     updateStatus();
+    if (options.soft) {
+      startReadyBroadcast("fallback", { error, fallback: "mock" });
+      return;
+    }
     try {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
           source: "carrot-kmap",
-          type: options.soft ? "ready" : "error",
+          type: "error",
           provider: state.provider,
           error,
-          fallback: options.soft ? "mock" : "",
+          fallback: "",
           snapshot: safeDebugSnapshot(options.soft ? "fallback" : "error"),
         }, "*");
       }
@@ -1290,7 +1317,7 @@
     });
     await initProvider();
     updateStatus();
-    postReady();
+    startReadyBroadcast("ready");
   }
 
   window.KmapDebug = {
