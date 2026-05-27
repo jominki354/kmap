@@ -17,7 +17,6 @@
   const surface = document.getElementById("mapSurface");
   const marker = document.getElementById("vehicleMarker");
   const statusText = document.getElementById("statusText");
-  const compass = document.getElementById("compass");
   const navInfo = document.getElementById("navInfo");
   const navRoad = document.getElementById("navRoad");
   const navMeta = document.getElementById("navMeta");
@@ -35,8 +34,6 @@
     provider: "mock",
     mode: "box",
     overlayHeadingUp: true,
-    showGrid: false,
-    showCompass: true,
     curvatureColor: false,
     themeMode: "auto",
     displayTheme: "day",
@@ -45,7 +42,6 @@
     markerOverlay: null,
     markerEl: null,
     lastLevelChangeAt: 0,
-    debug: false,
     status: "idle",
     error: "",
     sdkLoadedAt: 0,
@@ -484,8 +480,6 @@
       },
       options: {
         headingUp: state.overlayHeadingUp,
-        showGrid: state.showGrid,
-        showCompass: state.showCompass,
         curvatureColor: state.curvatureColor,
         themeMode: state.themeMode,
         displayTheme: state.displayTheme,
@@ -508,7 +502,7 @@
   }
 
   function postDebugSnapshot(reason = "", force = false) {
-    if (!state.debug && !force) return;
+    if (!force) return;
     const now = Date.now();
     if (!force && now - state.lastDebugPostAt < 1000) return;
     state.lastDebugPostAt = now;
@@ -915,11 +909,8 @@
 
   function applyOverlayOptions(params) {
     state.overlayHeadingUp = boolParam(params, "heading_up", true);
-    state.showGrid = boolParam(params, "grid", false);
-    state.showCompass = boolParam(params, "compass", true);
     state.curvatureColor = boolParam(params, "curvature", false);
     setDisplayTheme(params.get("theme") || "auto");
-    root.dataset.grid = state.showGrid ? "1" : "0";
     root.dataset.headingUp = state.overlayHeadingUp ? "1" : "0";
     root.dataset.curvature = state.curvatureColor ? "1" : "0";
     navState.dirty = true;
@@ -946,14 +937,6 @@
     if (state.curvatureColor) parts.push("curve");
     if (state.error) parts.push(state.error);
     statusText.textContent = parts.join(" / ");
-  }
-
-  function updateCompass() {
-    if (!compass) return;
-    compass.hidden = !state.showCompass;
-    if (compass.hidden) return;
-    const rotation = state.overlayHeadingUp ? -(interp.display.heading || state.heading || 0) : 0;
-    compass.style.setProperty("--compass-rotation", `${rotation}deg`);
   }
 
   function updateMockPan(lat, lon) {
@@ -990,7 +973,6 @@
 
   function renderDisplay() {
     applyMarkerRotation(interp.display.heading);
-    updateCompass();
     applyMarkerPosition();
     updateMockPan(interp.display.lat, interp.display.lon);
     applyKakaoPosition(interp.display.lat, interp.display.lon);
@@ -1268,8 +1250,6 @@
     const params = new URLSearchParams(window.location.search);
     const embedded = window.parent && window.parent !== window;
     root.dataset.embedded = embedded ? "1" : "0";
-    state.debug = params.get("debug") === "1";
-    root.dataset.debug = state.debug ? "1" : "0";
     applyOverlayOptions(params);
     if (embedded || params.get("demo") === "0") {
       demoPanel.hidden = true;
