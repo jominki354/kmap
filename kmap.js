@@ -12,6 +12,7 @@
   const EARTH_RADIUS_M = 6378137;
   const READY_BROADCAST_INTERVAL_MS = 600;
   const READY_BROADCAST_WINDOW_MS = 7000;
+  const READY_KEEPALIVE_MS = 2000;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -51,6 +52,8 @@
     status: "idle",
     error: "",
     sdkLoadedAt: 0,
+    parentReady: false,
+    lastReadyPostAt: 0,
     lastDebugPostAt: 0,
     overlayRaf: 0,
   };
@@ -1175,6 +1178,9 @@
     state.status = "ready";
     updateStatus();
     root.dataset.status = "ready";
+    if (!state.parentReady && Date.now() - state.lastReadyPostAt >= READY_KEEPALIVE_MS) {
+      postReady("vehicle");
+    }
     return true;
   }
 
@@ -1189,6 +1195,12 @@
       setRoute(data);
     } else if (data.type === "expanded") {
       setExpanded(data.expanded);
+    } else if (data.type === "ready-ack") {
+      state.parentReady = true;
+      if (readyBroadcastTimer) {
+        window.clearInterval(readyBroadcastTimer);
+        readyBroadcastTimer = 0;
+      }
     } else if (data.type === "debug-request") {
       if (state.status === "ready" || state.status === "fallback") {
         postReady("debug-request");
@@ -1199,6 +1211,7 @@
 
   function postReady(reason = "ready", extra = {}) {
     try {
+      state.lastReadyPostAt = Date.now();
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({
           source: "carrot-kmap",
@@ -1221,7 +1234,7 @@
     readyBroadcastUntil = Date.now() + READY_BROADCAST_WINDOW_MS;
     if (readyBroadcastTimer) window.clearInterval(readyBroadcastTimer);
     readyBroadcastTimer = window.setInterval(() => {
-      if (Date.now() > readyBroadcastUntil) {
+      if (state.parentReady || Date.now() > readyBroadcastUntil) {
         window.clearInterval(readyBroadcastTimer);
         readyBroadcastTimer = 0;
         return;
