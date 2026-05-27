@@ -475,6 +475,20 @@
     };
   }
 
+  function safeDebugSnapshot(reason = "") {
+    try {
+      return buildDebugSnapshot(reason);
+    } catch (error) {
+      return {
+        reason,
+        ts: Date.now(),
+        provider: state.provider,
+        status: state.status,
+        error: error?.message || "debug_snapshot_failed",
+      };
+    }
+  }
+
   function postDebugSnapshot(reason = "", force = false) {
     if (!state.debug && !force) return;
     const now = Date.now();
@@ -482,22 +496,10 @@
     state.lastDebugPostAt = now;
     try {
       if (window.parent && window.parent !== window) {
-        let snapshot = null;
-        try {
-          snapshot = buildDebugSnapshot(reason);
-        } catch (error) {
-          snapshot = {
-            reason,
-            ts: Date.now(),
-            provider: state.provider,
-            status: state.status,
-            error: error?.message || "debug_snapshot_failed",
-          };
-        }
         window.parent.postMessage({
           source: "carrot-kmap",
           type: "debug-snapshot",
-          snapshot,
+          snapshot: safeDebugSnapshot(reason),
         }, "*");
       }
     } catch (_) {
@@ -1179,7 +1181,7 @@
           // sdkLoadedAt is only non-zero when the Kakao SDK actually executed
           // (= 1 quota count). Parent uses this to track daily SDK load count.
           sdkLoadedAt: state.provider === "kakao" ? state.sdkLoadedAt || Date.now() : 0,
-          snapshot: buildDebugSnapshot("ready"),
+          snapshot: safeDebugSnapshot("ready"),
         }, "*");
       }
     } catch (_) {
@@ -1212,7 +1214,7 @@
           provider: state.provider,
           error,
           fallback: options.soft ? "mock" : "",
-          snapshot: buildDebugSnapshot(options.soft ? "fallback" : "error"),
+          snapshot: safeDebugSnapshot(options.soft ? "fallback" : "error"),
         }, "*");
       }
     } catch (_) {
@@ -1278,5 +1280,7 @@
     post: () => postDebugSnapshot("manual", true),
   };
 
-  init();
+  init().catch((error) => {
+    postError(error?.message || "kmap_init_failed");
+  });
 })();
