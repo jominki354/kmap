@@ -213,8 +213,10 @@ body {
   pointer-events: none;
   will-change: transform;
   z-index: 7;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .42))
-          drop-shadow(0 5px 7px rgba(0, 0, 0, .34));
+  filter:
+    drop-shadow(0 0 1px rgba(255, 255, 255, .92))
+    drop-shadow(0 0 3px rgba(82, 38, 10, .62))
+    drop-shadow(0 5px 7px rgba(0, 0, 0, .34));
 }
 
 .kmap-marker::before {
@@ -226,6 +228,9 @@ body {
     linear-gradient(180deg, #ffb75d 0%, #f47a20 48%, #c65618 100%);
   clip-path: polygon(50% 3%, 86% 87%, 58% 73%, 50% 95%, 42% 73%, 14% 87%);
   border-radius: 12px;
+  filter:
+    drop-shadow(0 0 1px rgba(255, 255, 255, .98))
+    drop-shadow(0 0 2px rgba(84, 36, 9, .62));
 }
 
 .kmap-marker::after {
