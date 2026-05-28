@@ -1022,6 +1022,10 @@
     applyMarkerRotation(interp.display.heading);
     applyMarkerPosition();
     updateMockPan(interp.display.lat, interp.display.lon);
+    if (state.provider !== "kakao") {
+      postDebugSnapshot("render");
+      return;
+    }
     applyKakaoPosition(interp.display.lat, interp.display.lon);
     renderOverlay();
     postDebugSnapshot("render");

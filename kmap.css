@@ -87,7 +87,8 @@ body {
   will-change: transform;
 }
 
-.kmap-root[data-provider="kakao"] .kmap-surface {
+.kmap-root[data-provider="kakao"] .kmap-surface,
+.kmap-root[data-provider="mock"] .kmap-surface {
   opacity: 0;
   pointer-events: none;
 }
@@ -106,6 +107,13 @@ body {
   inset: 0;
   z-index: 6;
   pointer-events: none;
+}
+
+.kmap-root[data-provider="mock"] .kmap-overlay,
+.kmap-root[data-provider="mock"] .kmap-overlay-html,
+.kmap-root[data-provider="mock"] .kmap-marker,
+.kmap-root[data-provider="mock"] .kmap-center-glow {
+  display: none !important;
 }
 
 /* Layout A: the in-iframe nav info panel is superseded by the parent-side
