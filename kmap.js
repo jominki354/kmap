@@ -709,12 +709,12 @@
     ctx.lineJoin = "round";
     drawSmoothedPath(ctx, points);
     ctx.strokeStyle = "rgba(0, 0, 0, .28)";
-    ctx.lineWidth = Math.max(7, Math.min(14, width * 0.018));
+    ctx.lineWidth = Math.max(4.5, Math.min(8, width * 0.010));
     ctx.stroke();
 
     drawSmoothedPath(ctx, points);
     ctx.strokeStyle = "rgba(255, 128, 38, .96)";
-    ctx.lineWidth = Math.max(5, Math.min(10, width * 0.012));
+    ctx.lineWidth = Math.max(3, Math.min(5.5, width * 0.0068));
     ctx.stroke();
     routeState.dirty = false;
     return true;
