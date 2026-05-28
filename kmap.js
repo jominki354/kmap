@@ -20,6 +20,8 @@
   const MAP_CENTER_EXPANDED_DISTANCE_M = 1.5;
   const KAKAO_MIN_LEVEL = 1;
   const KAKAO_MAX_LEVEL = 8;
+  const ROUTE_FIT_PADDING_MIN_PX = 28;
+  const ROUTE_FIT_PADDING_RATIO = 0.08;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -725,8 +727,11 @@
       for (const point of routeState.coordinates) {
         bounds.extend(new window.kakao.maps.LatLng(point.lat, point.lon));
       }
+      const rect = kakaoMapEl?.getBoundingClientRect?.();
+      const shortSide = Math.max(1, Math.min(rect?.width || 0, rect?.height || 0));
+      const pad = Math.round(Math.max(ROUTE_FIT_PADDING_MIN_PX, shortSide * ROUTE_FIT_PADDING_RATIO));
       window.kakao.maps.event.trigger(state.map, "resize");
-      state.map.setBounds(bounds);
+      state.map.setBounds(bounds, pad, pad, pad, pad);
       routeState.fitted = true;
       routeState.dirty = true;
     } catch (_) {
@@ -870,6 +875,7 @@
   function relayoutKakaoMap() {
     if (!state.map || !window.kakao?.maps) return;
     try {
+      const resized = resizeOverlayCanvas();
       window.kakao.maps.event.trigger(state.map, "resize");
       if (routeState.expanded && routeState.active) {
         fitRouteView();
@@ -877,6 +883,10 @@
         return;
       }
       applyKakaoPosition(state.lat, state.lon, true);
+      if (resized) {
+        navState.dirty = true;
+        routeState.dirty = true;
+      }
       requestOverlayRender("relayout");
     } catch (_) {
       // Resize events can race while the iframe is still settling.
