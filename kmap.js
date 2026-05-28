@@ -632,92 +632,16 @@
     ctx.restore();
   }
 
-  function roundedRectPath(ctx, x, y, width, height, radius) {
-    const r = Math.max(0, Math.min(radius, width / 2, height / 2));
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + width - r, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-    ctx.lineTo(x + width, y + height - r);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-    ctx.lineTo(x + r, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-  }
-
-  function drawSdiMarker(ctx, cx, cy, pxPerMeter, minY, maxY, width) {
-    const sdiDistance = finiteNumber(navState.sdi?.dist);
-    const sdiType = finiteNumber(navState.sdi?.type);
-    if (sdiDistance === null || sdiDistance <= 0 || sdiType === null || sdiType < 0 || !navState.points.length) return;
-    const point = pointAlongPath(navState.points, sdiDistance);
-    if (!point || point.forward < minY || point.forward > maxY) return;
-
-    const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
-    const size = Math.max(9, Math.min(15, width * 0.031));
-    const limit = finiteNumber(navState.sdi?.limit);
-
-    ctx.save();
-    ctx.translate(canvasPoint.x, canvasPoint.y);
-    ctx.beginPath();
-    roundedRectPath(ctx, -size * 0.72, -size * 0.52, size * 1.44, size * 1.04, size * 0.22);
-    ctx.fillStyle = "rgba(7, 10, 14, .66)";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.5, size * 0.16);
-    ctx.strokeStyle = "rgba(255,255,255,.82)";
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(0, 0, size * 0.25, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 120, 34, .96)";
-    ctx.fill();
-    if (limit && limit > 0 && size >= 12) {
-      ctx.font = `900 ${Math.max(7, size * 0.48)}px Arial, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,.92)";
-      ctx.fillText(String(Math.round(limit)), 0, size * 1.08);
-    }
-    ctx.restore();
-  }
-
-  function segmentCurvature(points, index, cx, cy, pxPerMeter) {
-    if (index <= 0 || index >= points.length - 1) return 0;
-    const previous = pathPointToCanvas(points[index - 1], cx, cy, pxPerMeter);
-    const current = pathPointToCanvas(points[index], cx, cy, pxPerMeter);
-    const next = pathPointToCanvas(points[index + 1], cx, cy, pxPerMeter);
-    const a = Math.atan2(current.y - previous.y, current.x - previous.x);
-    const b = Math.atan2(next.y - current.y, next.x - current.x);
-    return Math.abs((((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-  }
-
   function drawPathColorStroke(ctx, points, cx, cy, pxPerMeter, width, maxY) {
-    if (!state.curvatureColor) {
-      ctx.beginPath();
-      points.forEach((point, index) => {
-        const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
-        if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
-        else ctx.lineTo(canvasPoint.x, canvasPoint.y);
-      });
-      const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
-      gradient.addColorStop(0, "rgba(255, 190, 72, .99)");
-      gradient.addColorStop(1, "rgba(255, 92, 42, .96)");
-      ctx.strokeStyle = gradient;
-      // path stroke doubled per user request (2x).
-      ctx.lineWidth = Math.max(10, Math.min(18, width * 0.036));
-      ctx.stroke();
-      return;
-    }
-
-    ctx.lineWidth = Math.max(10, Math.min(18, width * 0.036));
-    for (let index = 1; index < points.length; index += 1) {
-      const from = pathPointToCanvas(points[index - 1], cx, cy, pxPerMeter);
-      const to = pathPointToCanvas(points[index], cx, cy, pxPerMeter);
-      const curve = segmentCurvature(points, index, cx, cy, pxPerMeter);
-      ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(to.x, to.y);
-      ctx.strokeStyle = curve > 0.32 ? "rgba(255, 83, 46, .96)" : curve > 0.16 ? "rgba(255, 184, 68, .96)" : "rgba(255, 132, 42, .94)";
-      ctx.stroke();
-    }
+    const canvasPoints = points.map((point) => pathPointToCanvas(point, cx, cy, pxPerMeter));
+    drawSmoothedPath(ctx, canvasPoints);
+    const gradient = ctx.createLinearGradient(cx, cy, cx, Math.max(0, cy - maxY * pxPerMeter));
+    gradient.addColorStop(0, "rgba(255, 190, 72, .99)");
+    gradient.addColorStop(0.48, state.curvatureColor ? "rgba(255, 136, 38, .97)" : "rgba(255, 132, 42, .97)");
+    gradient.addColorStop(1, state.curvatureColor ? "rgba(255, 86, 42, .96)" : "rgba(255, 92, 42, .96)");
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = Math.max(9, Math.min(16, width * 0.032));
+    ctx.stroke();
   }
 
   function fitRouteView() {
@@ -758,27 +682,37 @@
     };
   }
 
+  function drawSmoothedPath(ctx, canvasPoints) {
+    if (!Array.isArray(canvasPoints) || canvasPoints.length < 2) return false;
+    ctx.beginPath();
+    ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+    if (canvasPoints.length === 2) {
+      ctx.lineTo(canvasPoints[1].x, canvasPoints[1].y);
+      return true;
+    }
+    for (let index = 1; index < canvasPoints.length - 1; index += 1) {
+      const current = canvasPoints[index];
+      const next = canvasPoints[index + 1];
+      const midX = (current.x + next.x) / 2;
+      const midY = (current.y + next.y) / 2;
+      ctx.quadraticCurveTo(current.x, current.y, midX, midY);
+    }
+    const last = canvasPoints[canvasPoints.length - 1];
+    ctx.lineTo(last.x, last.y);
+    return true;
+  }
+
   function renderFullRoute(ctx, width, height) {
     if (!routeState.expanded || !routeState.active || !routeState.bounds || routeState.coordinates.length < 2) return false;
-    const points = routeState.coordinates;
+    const points = routeState.coordinates.map((point) => routePointToCanvas(point, routeState.bounds, width, height));
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    points.forEach((point, index) => {
-      const canvasPoint = routePointToCanvas(point, routeState.bounds, width, height);
-      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
-      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
-    });
+    drawSmoothedPath(ctx, points);
     ctx.strokeStyle = "rgba(0, 0, 0, .28)";
     ctx.lineWidth = Math.max(10, Math.min(20, width * 0.028));
     ctx.stroke();
 
-    ctx.beginPath();
-    points.forEach((point, index) => {
-      const canvasPoint = routePointToCanvas(point, routeState.bounds, width, height);
-      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
-      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
-    });
+    drawSmoothedPath(ctx, points);
     ctx.strokeStyle = "rgba(255, 128, 38, .96)";
     ctx.lineWidth = Math.max(8, Math.min(15, width * 0.020));
     ctx.stroke();
@@ -851,14 +785,10 @@
 
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    visible.forEach((point, index) => {
-      const canvasPoint = pathPointToCanvas(point, cx, cy, pxPerMeter);
-      if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
-      else ctx.lineTo(canvasPoint.x, canvasPoint.y);
-    });
+    const visibleCanvasPoints = visible.map((point) => pathPointToCanvas(point, cx, cy, pxPerMeter));
+    drawSmoothedPath(ctx, visibleCanvasPoints);
     ctx.strokeStyle = "rgba(0, 0, 0, .34)";
-    ctx.lineWidth = Math.max(12, Math.min(22, width * 0.043));
+    ctx.lineWidth = Math.max(11, Math.min(20, width * 0.039));
     ctx.stroke();
 
     drawPathColorStroke(ctx, visible, cx, cy, pxPerMeter, width, maxY);
