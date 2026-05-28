@@ -43,7 +43,7 @@
     mode: "box",
     overlayHeadingUp: true,
     curvatureColor: false,
-    themeMode: "auto",
+    themeMode: "day",
     displayTheme: "day",
     kakaoReady: false,
     map: null,
@@ -136,15 +136,9 @@
     return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
   }
 
-  function autoDisplayTheme(now = new Date()) {
-    const hour = now.getHours() + now.getMinutes() / 60;
-    return hour >= 6.5 && hour < 18.5 ? "day" : "night";
-  }
-
-  function setDisplayTheme(mode = "auto") {
-    const normalized = String(mode || "auto").trim().toLowerCase();
-    state.themeMode = ["day", "night", "auto"].includes(normalized) ? normalized : "auto";
-    state.displayTheme = state.themeMode === "auto" ? autoDisplayTheme() : state.themeMode;
+  function setDisplayTheme() {
+    state.themeMode = "day";
+    state.displayTheme = "day";
     root.dataset.themeMode = state.themeMode;
     root.dataset.theme = state.displayTheme;
   }
@@ -936,7 +930,7 @@
   function applyOverlayOptions(params) {
     state.overlayHeadingUp = boolParam(params, "heading_up", true);
     state.curvatureColor = boolParam(params, "curvature", false);
-    setDisplayTheme(params.get("theme") || "auto");
+    setDisplayTheme();
     root.dataset.headingUp = state.overlayHeadingUp ? "1" : "0";
     root.dataset.curvature = state.curvatureColor ? "1" : "0";
     navState.dirty = true;

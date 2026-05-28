@@ -4,10 +4,10 @@
   --kmap-road: rgba(78, 88, 92, .38);
   --kmap-panel-border: rgba(255,255,255,.24);
   --kmap-text: rgba(15, 19, 24, .80);
-  --kmap-tile-filter: saturate(1.05) brightness(1.03) contrast(1.06);
+  --kmap-tile-filter: saturate(1.00) brightness(.96) contrast(1.24);
   --kmap-shell-overlay:
-    linear-gradient(90deg, rgba(255,255,255,.20), transparent 24%),
-    radial-gradient(circle at 50% 50%, transparent 38%, rgba(255,255,255,.28));
+    linear-gradient(90deg, rgba(255,255,255,.12), transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 44%, rgba(8, 12, 16, .10));
 }
 
 * {
@@ -36,20 +36,10 @@ body {
 .kmap-root[data-theme="day"] {
   --kmap-bg: rgba(236, 241, 235, .96);
   --kmap-panel-border: rgba(255,255,255,.26);
-  --kmap-tile-filter: saturate(1.06) brightness(1.04) contrast(1.09);
+  --kmap-tile-filter: saturate(1.00) brightness(.96) contrast(1.24);
   --kmap-shell-overlay:
-    linear-gradient(90deg, rgba(255,255,255,.18), transparent 22%),
-    radial-gradient(circle at 50% 50%, transparent 42%, rgba(255,255,255,.22));
-}
-
-.kmap-root[data-theme="night"] {
-  --kmap-bg: rgba(17, 22, 28, .96);
-  --kmap-panel-border: rgba(255,255,255,.16);
-  --kmap-tile-filter: saturate(.82) brightness(.72) contrast(1.18);
-  --kmap-shell-overlay:
-    linear-gradient(90deg, rgba(255,255,255,.06), transparent 24%),
-    radial-gradient(circle at 50% 50%, transparent 48%, rgba(4, 8, 12, .36)),
-    linear-gradient(rgba(6, 10, 14, .10), rgba(6, 10, 14, .16));
+    linear-gradient(90deg, rgba(255,255,255,.12), transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 44%, rgba(8, 12, 16, .10));
 }
 
 .kmap-shell {
@@ -137,11 +127,6 @@ body {
   text-shadow: 0 1px 2px rgba(0,0,0,.45);
 }
 
-.kmap-root[data-theme="night"] .kmap-nav-info {
-  background: linear-gradient(180deg, rgba(5, 9, 13, .76), rgba(2, 4, 7, .68));
-  border-color: rgba(255,255,255,.16);
-}
-
 .kmap-nav-info__road,
 .kmap-nav-info__meta {
   overflow: hidden;
@@ -222,12 +207,6 @@ body {
   z-index: 7;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .58))
           drop-shadow(0 7px 10px rgba(0, 0, 0, .48));
-}
-
-.kmap-root[data-theme="night"] .kmap-marker {
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .72))
-          drop-shadow(0 0 10px rgba(255, 118, 30, .28))
-          drop-shadow(0 8px 12px rgba(0, 0, 0, .56));
 }
 
 .kmap-marker::before {
