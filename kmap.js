@@ -769,9 +769,8 @@
       if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
       else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
-    ctx.strokeStyle = "rgba(0, 0, 0, .50)";
-    // full-route outline + fill doubled per user request (2x).
-    ctx.lineWidth = Math.max(14, Math.min(28, width * 0.036));
+    ctx.strokeStyle = "rgba(0, 0, 0, .28)";
+    ctx.lineWidth = Math.max(10, Math.min(20, width * 0.028));
     ctx.stroke();
 
     ctx.beginPath();
@@ -780,8 +779,8 @@
       if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
       else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
-    ctx.strokeStyle = "rgba(255, 128, 38, .97)";
-    ctx.lineWidth = Math.max(10, Math.min(18, width * 0.024));
+    ctx.strokeStyle = "rgba(255, 128, 38, .96)";
+    ctx.lineWidth = Math.max(8, Math.min(15, width * 0.020));
     ctx.stroke();
     routeState.dirty = false;
     return true;
@@ -858,16 +857,13 @@
       if (index === 0) ctx.moveTo(canvasPoint.x, canvasPoint.y);
       else ctx.lineTo(canvasPoint.x, canvasPoint.y);
     });
-    ctx.strokeStyle = "rgba(0, 0, 0, .62)";
-    // main path outline doubled per user request (2x).
-    ctx.lineWidth = Math.max(16, Math.min(30, width * 0.058));
+    ctx.strokeStyle = "rgba(0, 0, 0, .34)";
+    ctx.lineWidth = Math.max(12, Math.min(22, width * 0.043));
     ctx.stroke();
 
     drawPathColorStroke(ctx, visible, cx, cy, pxPerMeter, width, maxY);
 
     drawTurnMarker(ctx, cx, cy, pxPerMeter, projectedPath ? -Infinity : minY, projectedPath ? Infinity : maxY, width);
-    drawSdiMarker(ctx, cx, cy, pxPerMeter, projectedPath ? -Infinity : minY, projectedPath ? Infinity : maxY, width);
-
     ctx.restore();
     navState.dirty = false;
   }
