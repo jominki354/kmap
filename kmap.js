@@ -18,6 +18,8 @@
   const MAP_CENTER_PARKED_DISTANCE_M = 14;
   const MAP_CENTER_SLOW_DISTANCE_M = 4;
   const MAP_CENTER_EXPANDED_DISTANCE_M = 1.5;
+  const KAKAO_MIN_LEVEL = 1;
+  const KAKAO_MAX_LEVEL = 8;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -1128,7 +1130,10 @@
       scrollwheel: false,
       disableDoubleClickZoom: true,
       keyboardShortcuts: false,
+      tileAnimation: false,
     });
+    state.map.setMinLevel?.(KAKAO_MIN_LEVEL);
+    state.map.setMaxLevel?.(KAKAO_MAX_LEVEL);
     if (state.map.setCopyrightPosition && window.kakao.maps.CopyrightPosition) {
       state.map.setCopyrightPosition(window.kakao.maps.CopyrightPosition.BOTTOMRIGHT, true);
     }
