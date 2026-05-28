@@ -10,6 +10,14 @@
   const INTERP_MIN_MS = 350;
   const NAV_STALE_MS = 5000;
   const EARTH_RADIUS_M = 6378137;
+  const MAP_CENTER_DEFAULT_INTERVAL_MS = 520;
+  const MAP_CENTER_PARKED_INTERVAL_MS = 2600;
+  const MAP_CENTER_SLOW_INTERVAL_MS = 900;
+  const MAP_CENTER_EXPANDED_INTERVAL_MS = 280;
+  const MAP_CENTER_DEFAULT_DISTANCE_M = 5.5;
+  const MAP_CENTER_PARKED_DISTANCE_M = 14;
+  const MAP_CENTER_SLOW_DISTANCE_M = 4;
+  const MAP_CENTER_EXPANDED_DISTANCE_M = 1.5;
 
   const root = document.getElementById("kmapRoot");
   const kakaoMapEl = document.getElementById("kakaoMap");
@@ -48,6 +56,9 @@
     hasVehicle: false,
     lastDebugPostAt: 0,
     overlayRaf: 0,
+    lastMapCenterLat: null,
+    lastMapCenterLon: null,
+    lastMapCenterAt: 0,
   };
 
   const navState = {
@@ -99,6 +110,18 @@
 
   function validLatLon(lat, lon) {
     return lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0);
+  }
+
+  function distanceMeters(aLat, aLon, bLat, bLon) {
+    if (!validLatLon(aLat, aLon) || !validLatLon(bLat, bLon)) return Infinity;
+    const lat1 = aLat * Math.PI / 180;
+    const lat2 = bLat * Math.PI / 180;
+    const dLat = (bLat - aLat) * Math.PI / 180;
+    const dLon = (bLon - aLon) * Math.PI / 180;
+    const sinLat = Math.sin(dLat / 2);
+    const sinLon = Math.sin(dLon / 2);
+    const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLon * sinLon;
+    return 2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
   }
 
   function normalizeHeading(value) {
@@ -857,7 +880,7 @@
         requestOverlayRender("relayout-route");
         return;
       }
-      state.map.setCenter(new window.kakao.maps.LatLng(state.lat, state.lon));
+      applyKakaoPosition(state.lat, state.lon, true);
       requestOverlayRender("relayout");
     } catch (_) {
       // Resize events can race while the iframe is still settling.
@@ -968,10 +991,37 @@
   function applyKakaoPosition(lat, lon, forceLevel = false) {
     if (!state.map || !window.kakao?.maps) return;
     if (routeState.expanded && routeState.active) return;
+    if (!validLatLon(lat, lon)) return;
     const position = new window.kakao.maps.LatLng(lat, lon);
-    state.map.setCenter(position);
+    const now = Date.now();
+    const expanded = routeState.expanded && !routeState.active;
+    const parked = state.speed < 3;
+    const slow = state.speed < 12;
+    const minInterval = expanded
+      ? MAP_CENTER_EXPANDED_INTERVAL_MS
+      : parked
+        ? MAP_CENTER_PARKED_INTERVAL_MS
+        : slow
+          ? MAP_CENTER_SLOW_INTERVAL_MS
+          : MAP_CENTER_DEFAULT_INTERVAL_MS;
+    const minDistance = expanded
+      ? MAP_CENTER_EXPANDED_DISTANCE_M
+      : parked
+        ? MAP_CENTER_PARKED_DISTANCE_M
+        : slow
+          ? MAP_CENTER_SLOW_DISTANCE_M
+          : MAP_CENTER_DEFAULT_DISTANCE_M;
+    const moved = distanceMeters(state.lastMapCenterLat, state.lastMapCenterLon, lat, lon);
+    const firstCenter = state.lastMapCenterLat === null || state.lastMapCenterLon === null;
+    const shouldCenter = forceLevel || firstCenter || (now - state.lastMapCenterAt >= minInterval && moved >= minDistance);
+    if (shouldCenter) {
+      state.map.setCenter(position);
+      state.lastMapCenterLat = lat;
+      state.lastMapCenterLon = lon;
+      state.lastMapCenterAt = now;
+    }
     setKakaoLevel(position, forceLevel);
-    requestOverlayRender("position");
+    if (shouldCenter) requestOverlayRender("position");
   }
 
   function renderDisplay() {
