@@ -149,11 +149,9 @@
   }
 
   function levelForSpeed(speed) {
-    // One Kakao zoom step closer than before per user request — the small
-    // map dock got too zoomed-out at speed. (lower level = more zoomed-in)
-    if (speed >= 105) return 5;
-    if (speed >= 70) return 4;
-    if (speed >= 25) return 3;
+    // Keep automatic zoom deliberately simple. High speed stays at the same
+    // default level as normal driving; only low-speed/parked states zoom in.
+    if (speed >= 30) return 3;
     if (speed >= 4) return 2;
     return 1;
   }
@@ -167,11 +165,9 @@
   }
 
   function viewRangeMeters(speedKph) {
-    // Tightened one step (more zoomed-in) to match the closer Kakao level.
+    // Match the simplified Kakao zoom policy: high speed does not zoom out.
     let base;
-    if (speedKph >= 100) base = 280;
-    else if (speedKph >= 60) base = 200;
-    else if (speedKph >= 30) base = 140;
+    if (speedKph >= 30) base = 140;
     else base = 100;
     // Global zoom bias: each step ~ one Kakao level (≈ 1.7x scale). Negative
     // bias = zoom in (smaller range), positive = zoom out (larger range).
