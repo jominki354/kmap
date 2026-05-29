@@ -148,11 +148,12 @@
     root.dataset.theme = state.displayTheme;
   }
 
-  function levelForSpeed(speed) {
+  function levelForSpeed(speed, previousLevel = state.level) {
     // Keep automatic zoom deliberately simple. High speed stays at the same
     // default level as normal driving; only low-speed/parked states zoom in.
-    if (speed >= 30) return 3;
-    if (speed >= 4) return 2;
+    // Small hysteresis prevents zoom flutter near the low/default thresholds.
+    if (speed >= 32 || (previousLevel >= 3 && speed >= 24)) return 3;
+    if (speed >= 5 || (previousLevel >= 2 && speed >= 2)) return 2;
     return 1;
   }
 
@@ -1157,7 +1158,7 @@
     state.hasVehicle = true;
     root.dataset.hasVehicle = "1";
     setMode(state.mode);
-    state.level = levelForSpeed(state.speed);
+    state.level = levelForSpeed(state.speed, state.level);
     applyMotionState();
 
     if (isFirstSample) {
