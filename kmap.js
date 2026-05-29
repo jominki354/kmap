@@ -42,6 +42,7 @@
     heading: 0,
     speed: 0,
     level: 4,
+    zoomBias: 0,        // global zoom offset from parent (+ = farther, - = closer)
     lastTs: 0,
     provider: "mock",
     mode: "box",
@@ -167,10 +168,14 @@
 
   function viewRangeMeters(speedKph) {
     // Tightened one step (more zoomed-in) to match the closer Kakao level.
-    if (speedKph >= 100) return 280;
-    if (speedKph >= 60) return 200;
-    if (speedKph >= 30) return 140;
-    return 100;
+    let base;
+    if (speedKph >= 100) base = 280;
+    else if (speedKph >= 60) base = 200;
+    else if (speedKph >= 30) base = 140;
+    else base = 100;
+    // Global zoom bias: each step ~ one Kakao level (≈ 1.7x scale). Negative
+    // bias = zoom in (smaller range), positive = zoom out (larger range).
+    return base * Math.pow(1.7, state.zoomBias || 0);
   }
 
   function expandedFallbackRange(speedKph) {
@@ -178,10 +183,12 @@
   }
 
   function kakaoDisplayLevel() {
+    const bias = state.zoomBias || 0;
     if (routeState.expanded && !routeState.active) {
-      return Math.min(8, state.level + 2);
+      return Math.max(KAKAO_MIN_LEVEL, Math.min(KAKAO_MAX_LEVEL, state.level + 2 + bias));
     }
-    return state.level;
+    // Apply global zoom bias on top of the automatic speed-based level.
+    return Math.max(KAKAO_MIN_LEVEL, Math.min(KAKAO_MAX_LEVEL, state.level + bias));
   }
 
   function resizeOverlayCanvas() {
@@ -383,6 +390,21 @@
     if (routeState.expanded && !routeState.active) applyKakaoPosition(state.lat, state.lon, true);
     applyMarkerPosition();
     renderOverlay();
+  }
+
+  function applyZoomBias(bias) {
+    const next = Math.max(-3, Math.min(3, Math.round(Number(bias) || 0)));
+    if (next === state.zoomBias) return;
+    state.zoomBias = next;
+    // Re-apply Kakao level immediately (force past the throttle) and redraw
+    // the schematic overlay with the new view range.
+    if (state.map && window.kakao?.maps) {
+      applyKakaoPosition(state.lat, state.lon, true);
+    }
+    navState.dirty = true;
+    routeState.dirty = true;
+    renderOverlay();
+    updateStatus();
   }
 
   function clearOverlay(ctx, width, height) {
@@ -1166,6 +1188,8 @@
       setRoute(data);
     } else if (data.type === "expanded") {
       setExpanded(data.expanded);
+    } else if (data.type === "zoom-bias") {
+      applyZoomBias(data.bias);
     } else if (data.type === "debug-request") {
       if (state.status === "ready" || state.status === "fallback") {
         postReady("debug-request");
