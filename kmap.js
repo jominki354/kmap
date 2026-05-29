@@ -148,11 +148,13 @@
   }
 
   function levelForSpeed(speed) {
-    if (speed >= 105) return 6;
-    if (speed >= 70) return 5;
-    if (speed >= 25) return 4;
-    if (speed >= 4) return 3;
-    return 2;
+    // One Kakao zoom step closer than before per user request — the small
+    // map dock got too zoomed-out at speed. (lower level = more zoomed-in)
+    if (speed >= 105) return 5;
+    if (speed >= 70) return 4;
+    if (speed >= 25) return 3;
+    if (speed >= 4) return 2;
+    return 1;
   }
 
   function motionForSpeed(speed) {
@@ -164,10 +166,11 @@
   }
 
   function viewRangeMeters(speedKph) {
-    if (speedKph >= 100) return 400;
-    if (speedKph >= 60) return 280;
-    if (speedKph >= 30) return 200;
-    return 140;
+    // Tightened one step (more zoomed-in) to match the closer Kakao level.
+    if (speedKph >= 100) return 280;
+    if (speedKph >= 60) return 200;
+    if (speedKph >= 30) return 140;
+    return 100;
   }
 
   function expandedFallbackRange(speedKph) {
@@ -793,7 +796,9 @@
 
     drawPathColorStroke(ctx, visible, cx, cy, pxPerMeter, width, maxY);
 
-    drawTurnMarker(ctx, cx, cy, pxPerMeter, projectedPath ? -Infinity : minY, projectedPath ? Infinity : maxY, width);
+    // Turn-point marker removed per user request — the route line itself
+    // already conveys the turn; the extra icon cluttered the map. (Function
+    // kept for possible future opt-in.)
     ctx.restore();
     navState.dirty = false;
   }
